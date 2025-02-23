@@ -5,28 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Random Nearby Location</title>
     <script>
-        function getRandomLocation() {
+        const API_KEY = "AIzaSyBlyFKklHOEsQ2Kq0rPspFqEekTkr8F2Ws";
+        
+        function getRandomLocation(radius, mode) {
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(function(position) {
+                navigator.geolocation.getCurrentPosition(async function(position) {
                     let lat = position.coords.latitude;
                     let lon = position.coords.longitude;
                     
-                    // Generovanie náhodného miesta v okruhu 1 km
-                    let randomLat = lat + (Math.random() * 0.018 - 0.009);
-                    let randomLon = lon + (Math.random() * 0.018 - 0.009);
+                    let randomRadius = radius;
+                    if (mode === "auto") {
+                        randomRadius = Math.random() * (30 - 2) + 2; // 2 km až 30 km
+                    } else if (mode === "walk") {
+                        randomRadius = Math.random() * 2; // max 2 km
+                    }
                     
-                    let mapsUrl = `https://www.google.com/maps?q=${randomLat},${randomLon}`;
-                    window.location.href = mapsUrl;
+                    let angle = Math.random() * Math.PI * 2;
+                    let randomLat = lat + (randomRadius / 111) * Math.cos(angle);
+                    let randomLon = lon + (randomRadius / (111 * Math.cos(lat * (Math.PI / 180)))) * Math.sin(angle);
+                    
+                    let place = await getNearestRoad(randomLat, randomLon);
+                    if (place) {
+                        window.location.href = `https://www.google.com/maps?q=${place.lat},${place.lon}`;
+                    } else {
+                        alert("Nepodarilo sa nájsť vhodnú cestu, skúste znova.");
+                    }
                 }, function(error) {
-                    document.body.innerHTML = "<h1>Povoliť prístup k polohe pre generovanie náhodného miesta.</h1>";
+                    alert("Povoliť prístup k polohe pre generovanie miesta.");
                 });
             } else {
-                document.body.innerHTML = "<h1>Váš prehliadač nepodporuje geolokáciu.</h1>";
+                alert("Váš prehliadač nepodporuje geolokáciu.");
             }
+        }
+        
+        async function getNearestRoad(lat, lon) {
+            let url = `https://roads.googleapis.com/v1/nearestRoads?points=${lat},${lon}&key=${API_KEY}`;
+            try {
+                let response = await fetch(url);
+                let data = await response.json();
+                if (data.snappedPoints && data.snappedPoints.length > 0) {
+                    return { lat: data.snappedPoints[0].location.latitude, lon: data.snappedPoints[0].location.longitude };
+                }
+            } catch (error) {
+                console.error("Chyba pri získavaní cesty: ", error);
+            }
+            return null;
         }
     </script>
 </head>
-<body onload="getRandomLocation()">
-    <h1>Generujem náhodnú polohu...</h1>
+<body>
+    <h1>Vyber režim:</h1>
+    <button onclick="getRandomLocation(5, 'manual')">Zvoliť radius (5 km)</button>
+    <button onclick="getRandomLocation(null, 'auto')">Auto (2-30 km)</button>
+    <button onclick="getRandomLocation(null, 'walk')">Pešo (max 2 km)</button>
 </body>
 </html>
