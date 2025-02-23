@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Nearby Location</title>
+    <script>
+        function getRandomLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    let lat = position.coords.latitude;
+                    let lon = position.coords.longitude;
+                    
+                    // Generovanie náhodného miesta v okruhu 1 km
+                    let randomLat = lat + (Math.random() * 0.018 - 0.009);
+                    let randomLon = lon + (Math.random() * 0.018 - 0.009);
+                    
+                    let mapsUrl = `https://www.google.com/maps?q=${randomLat},${randomLon}`;
+                    window.location.href = mapsUrl;
+                }, function(error) {
+                    document.body.innerHTML = "<h1>Povoliť prístup k polohe pre generovanie náhodného miesta.</h1>";
+                });
+            } else {
+                document.body.innerHTML = "<h1>Váš prehliadač nepodporuje geolokáciu.</h1>";
+            }
+        }
+    </script>
+</head>
+<body onload="getRandomLocation()">
+    <h1>Generujem náhodnú polohu...</h1>
+</body>
+</html>
