@@ -12,7 +12,8 @@
                 navigator.geolocation.getCurrentPosition(async function(position) {
                     let lat = position.coords.latitude;
                     let lon = position.coords.longitude;
-                    
+                    let attempts = 10; // Počet pokusov na nájdenie vhodnej cesty
+
                     let randomRadius = radius;
                     if (mode === "auto") {
                         randomRadius = Math.random() * (30 - 2) + 2; // 2 km až 30 km
@@ -20,16 +21,18 @@
                         randomRadius = Math.random() * 2; // max 2 km
                     }
                     
-                    let angle = Math.random() * Math.PI * 2;
-                    let randomLat = lat + (randomRadius / 111) * Math.cos(angle);
-                    let randomLon = lon + (randomRadius / (111 * Math.cos(lat * (Math.PI / 180)))) * Math.sin(angle);
-                    
-                    let place = await getNearestRoad(randomLat, randomLon);
-                    if (place) {
-                        window.location.href = `https://www.google.com/maps?q=${place.lat},${place.lon}`;
-                    } else {
-                        alert("Nepodarilo sa nájsť vhodnú cestu, skúste znova.");
+                    for (let i = 0; i < attempts; i++) {
+                        let angle = Math.random() * Math.PI * 2;
+                        let randomLat = lat + (randomRadius / 111) * Math.cos(angle);
+                        let randomLon = lon + (randomRadius / (111 * Math.cos(lat * (Math.PI / 180)))) * Math.sin(angle);
+                        
+                        let place = await getNearestRoadOrPlace(randomLat, randomLon);
+                        if (place) {
+                            window.location.href = `https://www.google.com/maps?q=${place.lat},${place.lon}`;
+                            return;
+                        }
                     }
+                    alert("Nepodarilo sa nájsť vhodnú cestu ani po viacerých pokusoch. Skúste znova.");
                 }, function(error) {
                     alert("Povoliť prístup k polohe pre generovanie miesta.");
                 });
@@ -38,16 +41,26 @@
             }
         }
         
-        async function getNearestRoad(lat, lon) {
-            let url = `https://roads.googleapis.com/v1/nearestRoads?points=${lat},${lon}&key=${API_KEY}`;
+        async function getNearestRoadOrPlace(lat, lon) {
             try {
-                let response = await fetch(url);
-                let data = await response.json();
-                if (data.snappedPoints && data.snappedPoints.length > 0) {
-                    return { lat: data.snappedPoints[0].location.latitude, lon: data.snappedPoints[0].location.longitude };
+                // Najprv skúsiť Google Roads API
+                let roadsUrl = `https://roads.googleapis.com/v1/nearestRoads?points=${lat},${lon}&key=${API_KEY}`;
+                let roadsResponse = await fetch(roadsUrl);
+                let roadsData = await roadsResponse.json();
+                if (roadsData.snappedPoints && roadsData.snappedPoints.length > 0) {
+                    return { lat: roadsData.snappedPoints[0].location.latitude, lon: roadsData.snappedPoints[0].location.longitude };
+                }
+                
+                // Ak Roads API nič nenašlo, skúsiť Google Places API
+                let placesUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=50&type=route&key=${API_KEY}`;
+                let placesResponse = await fetch(placesUrl);
+                let placesData = await placesResponse.json();
+                if (placesData.results && placesData.results.length > 0) {
+                    let place = placesData.results[0].geometry.location;
+                    return { lat: place.lat, lon: place.lng };
                 }
             } catch (error) {
-                console.error("Chyba pri získavaní cesty: ", error);
+                console.error("Chyba pri získavaní cesty alebo miesta: ", error);
             }
             return null;
         }
