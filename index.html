@@ -11,7 +11,7 @@
       overflow: hidden;
     }
     canvas {
-      display: none;
+      display: block;
       position: absolute;
       top: 0;
       left: 0;
@@ -50,7 +50,6 @@
 
     let animationInterval;
     function startMatrixAnimation() {
-      canvas.style.display = "block";
       animationInterval = setInterval(drawMatrix, 33);
     }
     
@@ -63,10 +62,9 @@
 
     function redirectToRandomLocation() {
       if (navigator.geolocation) {
+        // Spusti animáciu okamžite – už bude viditeľná hneď po zmiznutí okna povolenia polohy
+        startMatrixAnimation();
         navigator.geolocation.getCurrentPosition(async function(position) {
-          // Geolokácia potvrdená – spustí sa Matrix animácia
-          startMatrixAnimation();
-
           let lat = position.coords.latitude;
           let lon = position.coords.longitude;
           const attempts = 10;
@@ -100,7 +98,10 @@
         const roadsResponse = await fetch(roadsUrl);
         const roadsData = await roadsResponse.json();
         if (roadsData.snappedPoints && roadsData.snappedPoints.length > 0) {
-          return { lat: roadsData.snappedPoints[0].location.latitude, lon: roadsData.snappedPoints[0].location.longitude };
+          return { 
+            lat: roadsData.snappedPoints[0].location.latitude, 
+            lon: roadsData.snappedPoints[0].location.longitude 
+          };
         }
       } catch (error) {
         console.error("Chyba pri získavaní cesty:", error);
